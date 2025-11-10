@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, simpledialog
+from tkinter import ttk, filedialog, messagebox
 import pandas as pd
 import numpy as np
 
@@ -45,7 +45,7 @@ class SimplePredicate:
         if self.rhs["type"] == "var":
             return f"{self.name}(X,Y): X.{self.attr} {self.op} Y.{self.attr}"
         else:
-            return f"{self.name}(X): X.{self.attr} {self.op} {self.rhs['value']}"
+            return f"{name}(X): X.{self.attr} {self.op} {self.rhs['value']}"
 
 class CompoundPredicate:
     """φ = NOT P  |  (P AND Q)  |  (P OR Q)"""
@@ -165,46 +165,8 @@ class LogicQueryApp:
         self.pred_list.configure(yscrollcommand=sb.set)
         sb.grid(row=1, column=1, sticky="ns")
         
-        # Botones para Ver Detalles, Editar y Ver Matriz
-        button_frame = ttk.Frame(lib_main)
-        button_frame.grid(row=2, column=0, sticky="w", pady=4)
-
-        ttk.Button(button_frame, text="Ver Detalles", 
-                  command=self.show_predicate_details_dialog).grid(row=0, column=0, padx=2)
-        ttk.Button(button_frame, text="Editar", 
-                  command=self.edit_predicate_dialog).grid(row=0, column=1, padx=2)
-        ttk.Button(button_frame, text="Ver Matriz", 
-                  command=self.show_predicate_matrix_dialog).grid(row=0, column=2, padx=2)
-
-        # --- Constructor de fórmulas compuestas ---
-        comp_frame = ttk.LabelFrame(lib_main, text="Constructor de Fórmulas Compuestas", padding=8)
-        comp_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(10,0))
-        comp_frame.grid_columnconfigure(1, weight=1)
-
-        # Variables para fórmulas compuestas
-        self.comp_op_var = tk.StringVar(value=LogicOp.AND)
-        self.comp_arg1 = tk.StringVar()
-        self.comp_arg2 = tk.StringVar()
-        self.comp_name = tk.StringVar()
-
-        rowc = 0
-        ttk.Label(comp_frame, text="Operador lógico:").grid(row=rowc, column=0, sticky="e", padx=4)
-        ttk.Combobox(comp_frame, textvariable=self.comp_op_var, values=LOGIC_OPS, state="readonly", width=12).grid(row=rowc, column=1, sticky="w")
-
-        rowc += 1
-        ttk.Label(comp_frame, text="Arg1 (nombre):").grid(row=rowc, column=0, sticky="e", padx=4)
-        ttk.Entry(comp_frame, textvariable=self.comp_arg1, width=16).grid(row=rowc, column=1, sticky="w")
-
-        rowc += 1
-        ttk.Label(comp_frame, text="Arg2 (nombre):").grid(row=rowc, column=0, sticky="e", padx=4)
-        ttk.Entry(comp_frame, textvariable=self.comp_arg2, width=16).grid(row=rowc, column=1, sticky="w")
-
-        rowc += 1
-        ttk.Label(comp_frame, text="Nombre fórmula:").grid(row=rowc, column=0, sticky="e", padx=4)
-        ttk.Entry(comp_frame, textvariable=self.comp_name, width=16).grid(row=rowc, column=1, sticky="w")
-
-        rowc += 1
-        ttk.Button(comp_frame, text="Guardar fórmula", command=self.save_compound).grid(row=rowc, column=0, columnspan=2, pady=6)
+        # Botón para ver detalle
+        ttk.Button(lib_main, text="Ver detalle", command=self.show_selected_predicate).grid(row=2, column=0, sticky="w", pady=4)
 
         # --- Operaciones con Matrices ---
         matrix_frame = ttk.LabelFrame(main, text="Operaciones con Matrices", padding=8)
@@ -455,10 +417,6 @@ class LogicQueryApp:
         self.pred_list.insert(tk.END, f"{name} (simple) :: {sp.caption()}")
         self.status_var.set(f"Predicado '{name}' guardado.")
         
-        # Limpiar campos después de guardar
-        self.pred_name_var.set("")
-        self.const_entry_var.set("")
-        
         # Actualizar combos de matrices
         self.update_predicate_combos()
 
@@ -502,326 +460,15 @@ class LogicQueryApp:
         self.pred_list.insert(tk.END, f"{name} (compuesta) :: {cp.caption()}")
         self.status_var.set(f"Fórmula '{name}' guardada.")
         
-        # Limpiar campos después de guardar
-        self.comp_name.set("")
-        self.comp_arg1.set("")
-        self.comp_arg2.set("")
-        
         # Actualizar combos de matrices
         self.update_predicate_combos()
 
     def show_selected_predicate(self):
         sel = self.pred_list.curselection()
         if not sel:
-            messagebox.showinfo("Información", "Selecciona un predicado de la lista para ver su detalle.")
             return
         text = self.pred_list.get(sel[0])
-        messagebox.showinfo("Detalle del Predicado", text)
-
-    # ---------- NUEVO: Ver Matriz de cualquier proposición ----------
-    def show_predicate_matrix_dialog(self):
-        """Muestra diálogo para seleccionar y ver matriz de cualquier predicado"""
-        if not self.predicates:
-            messagebox.showinfo("Información", "No hay predicados definidos")
-            return
-        
-        # Crear ventana de selección
-        matrix_window = tk.Toplevel(self.root)
-        matrix_window.title("Ver Matriz de Predicado")
-        matrix_window.geometry("300x150")
-        
-        ttk.Label(matrix_window, text="Seleccionar predicado:").pack(pady=10)
-        
-        pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(matrix_window, textvariable=pred_var, 
-                                 values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
-        def show_matrix():
-            pred_name = pred_var.get()
-            if not pred_name:
-                messagebox.showerror("Error", "Selecciona un predicado")
-                return
-            
-            # Mostrar advertencia para datasets grandes
-            if self.data is not None and len(self.data) > 50:
-                if not messagebox.askyesno("Advertencia", 
-                                          f"El dataset tiene {len(self.data)} filas. "
-                                          f"Generar la matriz puede tomar tiempo. ¿Continuar?"):
-                    return
-            
-            matrix, ids = self.generate_truth_matrix(pred_name)
-            if matrix is not None:
-                self.display_matrix(matrix, ids, ids, f"Matriz de {pred_name}")
-                matrix_window.destroy()
-        
-        ttk.Button(matrix_window, text="Ver Matriz", command=show_matrix).pack(pady=10)
-
-    def show_predicate_details_dialog(self):
-        """Muestra diálogo para ver detalles de cualquier predicado"""
-        if not self.predicates:
-            messagebox.showinfo("Información", "No hay predicados definidos")
-            return
-        
-        # Crear ventana de selección
-        details_window = tk.Toplevel(self.root)
-        details_window.title("Ver Detalles de Predicado")
-        details_window.geometry("400x300")
-        
-        ttk.Label(details_window, text="Seleccionar predicado:").pack(pady=10)
-        
-        pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(details_window, textvariable=pred_var, 
-                                 values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
-        # Frame para mostrar detalles
-        details_frame = ttk.Frame(details_window)
-        details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        details_text = tk.Text(details_frame, height=10, width=50)
-        scrollbar = ttk.Scrollbar(details_frame, orient="vertical", command=details_text.yview)
-        details_text.configure(yscrollcommand=scrollbar.set)
-        
-        details_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        def update_details(*args):
-            pred_name = pred_var.get()
-            if pred_name in self.predicates:
-                pred = self.predicates[pred_name]
-                details_text.delete(1.0, tk.END)
-                
-                if pred.type == "simple":
-                    details_text.insert(tk.END, f"Nombre: {pred.name}\n")
-                    details_text.insert(tk.END, f"Tipo: Predicado Simple\n")
-                    details_text.insert(tk.END, f"Atributo: {pred.attr}\n")
-                    details_text.insert(tk.END, f"Operador: {pred.op}\n")
-                    details_text.insert(tk.END, f"Variable izquierda: {pred.lhs_var}\n")
-                    
-                    if pred.rhs["type"] == "var":
-                        details_text.insert(tk.END, f"Variable derecha: {pred.rhs['var']}\n")
-                    else:
-                        details_text.insert(tk.END, f"Constante: {pred.rhs['value']}\n")
-                        
-                    details_text.insert(tk.END, f"\nFórmula: {pred.caption()}")
-                    
-                else:  # compound
-                    details_text.insert(tk.END, f"Nombre: {pred.name}\n")
-                    details_text.insert(tk.END, f"Tipo: Fórmula Compuesta\n")
-                    details_text.insert(tk.END, f"Operador: {pred.op}\n")
-                    details_text.insert(tk.END, f"Argumentos: {pred.args}\n")
-                    details_text.insert(tk.END, f"\nFórmula: {pred.caption()}")
-        
-        pred_var.trace_add("write", update_details)
-        
-        ttk.Button(details_window, text="Cerrar", command=details_window.destroy).pack(pady=10)
-
-    # ---------- NUEVO: Editar Predicado ----------
-    def edit_predicate_dialog(self):
-        """Permite editar un predicado existente"""
-        if not self.predicates:
-            messagebox.showinfo("Información", "No hay predicados definidos")
-            return
-        
-        # Crear ventana de selección
-        edit_window = tk.Toplevel(self.root)
-        edit_window.title("Editar Predicado")
-        edit_window.geometry("400x300")
-        
-        ttk.Label(edit_window, text="Seleccionar predicado a editar:").pack(pady=10)
-        
-        pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(edit_window, textvariable=pred_var, 
-                                 values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
-        # Frame para controles de edición
-        edit_frame = ttk.Frame(edit_window)
-        edit_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        def load_predicate_for_editing():
-            pred_name = pred_var.get()
-            if pred_name not in self.predicates:
-                return
-            
-            pred = self.predicates[pred_name]
-            
-            # Limpiar frame de edición
-            for widget in edit_frame.winfo_children():
-                widget.destroy()
-            
-            if pred.type == "simple":
-                self._setup_simple_predicate_editing(edit_frame, pred)
-            else:
-                self._setup_compound_predicate_editing(edit_frame, pred)
-        
-        pred_var.trace_add("write", lambda *args: load_predicate_for_editing())
-        
-        ttk.Button(edit_window, text="Cerrar", command=edit_window.destroy).pack(pady=10)
-
-    def _setup_simple_predicate_editing(self, parent, pred):
-        """Configura interfaz para editar predicado simple"""
-        row = 0
-        
-        # Nombre
-        ttk.Label(parent, text="Nombre:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        name_var = tk.StringVar(value=pred.name)
-        name_entry = ttk.Entry(parent, textvariable=name_var, width=20)
-        name_entry.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        # Atributo
-        ttk.Label(parent, text="Atributo:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        attr_var = tk.StringVar(value=pred.attr)
-        attr_combo = ttk.Combobox(parent, textvariable=attr_var, 
-                                 values=list(self.data.columns) if self.data is not None else [],
-                                 state="readonly", width=20)
-        attr_combo.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        # Operador
-        ttk.Label(parent, text="Operador:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        op_var = tk.StringVar(value=pred.op)
-        op_combo = ttk.Combobox(parent, textvariable=op_var, values=REL_OPS, 
-                               state="readonly", width=20)
-        op_combo.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        # Valor derecho
-        ttk.Label(parent, text="Valor derecho:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        
-        if pred.rhs["type"] == "var":
-            rhs_var = tk.StringVar(value="var")
-            rhs_value = tk.StringVar(value=pred.rhs["var"])
-        else:
-            rhs_var = tk.StringVar(value="const")
-            rhs_value = tk.StringVar(value=str(pred.rhs["value"]))
-        
-        rhs_frame = ttk.Frame(parent)
-        rhs_frame.grid(row=row, column=1, sticky="w", pady=2)
-        
-        ttk.Radiobutton(rhs_frame, text="Variable", variable=rhs_var, value="var").grid(row=0, column=0)
-        ttk.Radiobutton(rhs_frame, text="Constante", variable=rhs_var, value="const").grid(row=0, column=1)
-        
-        rhs_entry = ttk.Entry(rhs_frame, textvariable=rhs_value, width=15)
-        rhs_entry.grid(row=0, column=2, padx=5)
-        row += 1
-        
-        def save_changes():
-            new_name = name_var.get().strip()
-            if not new_name:
-                messagebox.showerror("Error", "El nombre no puede estar vacío")
-                return
-            
-            # Verificar si el nombre ya existe (excluyendo el propio)
-            if new_name != pred.name and new_name in self.predicates:
-                messagebox.showerror("Error", f"Ya existe un predicado llamado '{new_name}'")
-                return
-            
-            # Actualizar predicado
-            pred.name = new_name
-            pred.attr = attr_var.get()
-            pred.op = op_var.get()
-            
-            if rhs_var.get() == "var":
-                pred.rhs = {"type": "var", "var": rhs_value.get()}
-            else:
-                try:
-                    series = self.data[pred.attr] if self.data is not None else None
-                    value = self._parse_const_for_series(series, rhs_value.get()) if series is not None else rhs_value.get()
-                    pred.rhs = {"type": "const", "value": value}
-                except Exception as e:
-                    messagebox.showerror("Error", f"Error en constante: {e}")
-                    return
-            
-            # Actualizar lista
-            self._refresh_predicate_list()
-            parent.winfo_toplevel().destroy()
-            messagebox.showinfo("Éxito", f"Predicado '{new_name}' actualizado")
-        
-        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(row=row, column=0, columnspan=2, pady=10)
-
-    def _setup_compound_predicate_editing(self, parent, pred):
-        """Configura interfaz para editar predicado compuesto"""
-        row = 0
-        
-        # Nombre
-        ttk.Label(parent, text="Nombre:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        name_var = tk.StringVar(value=pred.name)
-        name_entry = ttk.Entry(parent, textvariable=name_var, width=20)
-        name_entry.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        # Operador
-        ttk.Label(parent, text="Operador:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        op_var = tk.StringVar(value=pred.op)
-        op_combo = ttk.Combobox(parent, textvariable=op_var, values=LOGIC_OPS, 
-                               state="readonly", width=20)
-        op_combo.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        # Argumentos
-        ttk.Label(parent, text="Argumento 1:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-        arg1_var = tk.StringVar(value=pred.args[0])
-        arg1_combo = ttk.Combobox(parent, textvariable=arg1_var, 
-                                 values=list(self.predicates.keys()), width=20)
-        arg1_combo.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-        
-        if len(pred.args) > 1:
-            ttk.Label(parent, text="Argumento 2:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
-            arg2_var = tk.StringVar(value=pred.args[1])
-            arg2_combo = ttk.Combobox(parent, textvariable=arg2_var, 
-                                     values=list(self.predicates.keys()), width=20)
-            arg2_combo.grid(row=row, column=1, sticky="w", pady=2)
-            row += 1
-        
-        def save_changes():
-            new_name = name_var.get().strip()
-            if not new_name:
-                messagebox.showerror("Error", "El nombre no puede estar vacío")
-                return
-            
-            if new_name != pred.name and new_name in self.predicates:
-                messagebox.showerror("Error", f"Ya existe un predicado llamado '{new_name}'")
-                return
-            
-            # Validar argumentos
-            if arg1_var.get() not in self.predicates:
-                messagebox.showerror("Error", "Argumento 1 no válido")
-                return
-            
-            new_args = [arg1_var.get()]
-            if len(pred.args) > 1:
-                if arg2_var.get() not in self.predicates:
-                    messagebox.showerror("Error", "Argumento 2 no válido")
-                    return
-                new_args.append(arg2_var.get())
-            
-            # Actualizar predicado
-            pred.name = new_name
-            pred.op = op_var.get()
-            pred.args = new_args
-            
-            # Actualizar lista
-            self._refresh_predicate_list()
-            parent.winfo_toplevel().destroy()
-            messagebox.showinfo("Éxito", f"Fórmula '{new_name}' actualizada")
-        
-        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(row=row, column=0, columnspan=2, pady=10)
-
-    def _refresh_predicate_list(self):
-        """Actualiza la lista de predicados en la interfaz"""
-        self.pred_list.delete(0, tk.END)
-        for name, pred in self.predicates.items():
-            if pred.type == "simple":
-                self.pred_list.insert(tk.END, f"{name} (simple) :: {pred.caption()}")
-            else:
-                self.pred_list.insert(tk.END, f"{name} (compuesta) :: {pred.caption()}")
-        
-        # Actualizar combos
-        self.update_predicate_combos()
+        messagebox.showinfo("Detalle", text)
 
     # ---------- evaluación ----------
     def _eval_predicate(self, name, x=None, y=None):
@@ -886,40 +533,20 @@ class LogicQueryApp:
         ids = list(self.data[self.id_column])
         return ids, ids
 
-    # ---------- MATRICES NxN (OPTIMIZADO) ----------
+    # ---------- MATRICES NxN ----------
     def generate_truth_matrix(self, predicate_name):
-        """Genera matriz NxN de verdad para un predicado - VERSIÓN OPTIMIZADA"""
+        """Genera matriz NxN de verdad para un predicado"""
         if self.data is None or predicate_name not in self.predicates:
             return None, []
         
         ids = self._get_domain_ids()
         n = len(ids)
         
-        # Si el dataset es muy grande, limitar para evitar problemas de rendimiento
-        max_size = 100  # Máximo 100x100 para evitar bloqueos
-        if n > max_size:
-            ids = ids[:max_size]
-            n = max_size
-            messagebox.showwarning("Advertencia", 
-                                 f"Dataset muy grande. Mostrando matriz {max_size}x{max_size} en lugar de {n}x{n}")
-        
         # Crear matriz de ceros (falso)
         matrix = np.zeros((n, n), dtype=bool)
         
         # Llenar la matriz evaluando el predicado para cada par (i,j)
         pred = self.predicates[predicate_name]
-        
-        # Mostrar progreso para datasets grandes
-        if n > 20:
-            progress_window = tk.Toplevel(self.root)
-            progress_window.title("Generando Matriz")
-            progress_window.geometry("300x100")
-            ttk.Label(progress_window, text="Generando matriz, por favor espere...").pack(pady=10)
-            progress_var = tk.DoubleVar()
-            progress_bar = ttk.Progressbar(progress_window, variable=progress_var, maximum=n)
-            progress_bar.pack(pady=10, padx=20, fill=tk.X)
-            progress_window.update()
-        
         for i, x in enumerate(ids):
             for j, y in enumerate(ids):
                 if pred.type == "simple" and pred.rhs["type"] == "var":
@@ -927,15 +554,6 @@ class LogicQueryApp:
                 else:
                     # Si es constante o compuesto, solo depende de X
                     matrix[i][j] = self._eval_predicate(predicate_name, x, None)
-            
-            # Actualizar barra de progreso
-            if n > 20:
-                progress_var.set(i + 1)
-                progress_window.update()
-        
-        # Cerrar ventana de progreso si existe
-        if n > 20:
-            progress_window.destroy()
         
         return matrix, ids
 
@@ -1054,43 +672,18 @@ class LogicQueryApp:
             messagebox.showerror("Error", "Selecciona un predicado válido")
             return
         
-        # Mostrar advertencia para datasets grandes
-        if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno("Advertencia", 
-                                      f"El dataset tiene {len(self.data)} filas. "
-                                      f"Generar la matriz puede tomar tiempo. ¿Continuar?"):
-                return
-        
         matrix, ids = self.generate_truth_matrix(pred_name)
         if matrix is not None:
             self.display_matrix(matrix, ids, ids, f"Matriz de {pred_name}")
 
     def apply_matrix_operator(self):
-        """Aplica operador binario a dos matrices y guarda con nombre"""
+        """Aplica operador binario a dos matrices"""
         pred1 = self.matrix_pred1.get()
         pred2 = self.matrix_pred2.get()
         op = self.matrix_op.get()
         
         if not all([pred1, pred2, op]):
             messagebox.showerror("Error", "Selecciona dos predicados y un operador")
-            return
-        
-        # Mostrar advertencia para datasets grandes
-        if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno("Advertencia", 
-                                      f"El dataset tiene {len(self.data)} filas. "
-                                      f"Generar las matrices puede tomar tiempo. ¿Continuar?"):
-                return
-        
-        # Pedir nombre para el resultado
-        result_name = simpledialog.askstring("Nombre del Resultado", 
-                                           "Ingresa un nombre para guardar el resultado:",
-                                           parent=self.root)
-        if not result_name:
-            return
-        
-        if result_name in self.predicates:
-            messagebox.showerror("Error", f"Ya existe un predicado llamado '{result_name}'")
             return
         
         matrix1, ids1 = self.generate_truth_matrix(pred1)
@@ -1115,61 +708,22 @@ class LogicQueryApp:
                 messagebox.showerror("Error", "Operador no válido")
                 return
             
-            # Crear un nuevo predicado compuesto que representa la operación
-            comp_pred = CompoundPredicate(result_name, op, [pred1, pred2])
-            self.predicates[result_name] = comp_pred
-            
-            # Actualizar la lista
-            self.pred_list.insert(tk.END, f"{result_name} (compuesta) :: {comp_pred.caption()}")
-            self.update_predicate_combos()
-            
-            # Mostrar la matriz
-            self.display_matrix(result, ids1, ids2, f"{result_name} ({pred1} {op} {pred2})")
-            
-            messagebox.showinfo("Éxito", f"Operación guardada como: {result_name}")
+            self.display_matrix(result, ids1, ids2, f"{pred1} {op} {pred2}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error aplicando operador: {e}")
 
     def apply_matrix_not(self):
-        """Aplica NOT a una matriz y guarda con nombre"""
+        """Aplica NOT a una matriz"""
         pred_name = self.not_pred.get()
         if not pred_name:
             messagebox.showerror("Error", "Selecciona un predicado")
             return
         
-        # Mostrar advertencia para datasets grandes
-        if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno("Advertencia", 
-                                      f"El dataset tiene {len(self.data)} filas. "
-                                      f"Generar la matriz puede tomar tiempo. ¿Continuar?"):
-                return
-        
-        # Pedir nombre para el resultado
-        result_name = simpledialog.askstring("Nombre del Resultado", 
-                                           "Ingresa un nombre para guardar el resultado:",
-                                           parent=self.root)
-        if not result_name:
-            return
-        
-        if result_name in self.predicates:
-            messagebox.showerror("Error", f"Ya existe un predicado llamado '{result_name}'")
-            return
-        
         matrix, ids = self.generate_truth_matrix(pred_name)
         if matrix is not None:
             result = self.matrix_NOT(matrix)
-            
-            # Crear nuevo predicado compuesto
-            comp_pred = CompoundPredicate(result_name, LogicOp.NOT, [pred_name])
-            self.predicates[result_name] = comp_pred
-            
-            # Actualizar la lista
-            self.pred_list.insert(tk.END, f"{result_name} (compuesta) :: {comp_pred.caption()}")
-            self.update_predicate_combos()
-            
-            self.display_matrix(result, ids, ids, f"{result_name} (NOT {pred_name})")
-            messagebox.showinfo("Éxito", f"Operación guardada como: {result_name}")
+            self.display_matrix(result, ids, ids, f"NOT {pred_name}")
 
     # ---------- CONSULTAS CUANTIFICADAS ----------
     def execute_quantified_query(self):
