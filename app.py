@@ -47,7 +47,7 @@ class SimplePredicate:
         self.rhs = rhs            # {"type":"var","var":"Y"} o {"type":"const","value":..}
 
     def caption(self):
-        # Notación tipo libro: p(x,y): x.attr op y.attr
+        # Notación tipo libro: descripción en español de p(x,y) o p(x)
         if self.rhs["type"] == "var":
             return f'{self.name}(x,y): "{self._describe_comparison(self.attr, self.op)}"'
         else:
@@ -94,20 +94,15 @@ class CompoundPredicate:
     def caption(self):
         # Notación tipo libro: P(x,y): p(x,y) AND q(x,y)
         if self.op == LogicOp.NOT:
-            # NOT p(x,y)
             return f"{self.name}(x,y): NOT({self.args[0]}(x,y))"
         if self.op == LogicOp.IMPLIES:
-            # P(x,y): p(x,y) IMPLIES q(x,y)  (si solo hay un arg, p -> p)
             if len(self.args) == 1:
                 return f"{self.name}(x,y): {self.args[0]}(x,y) IMPLIES {self.args[0]}(x,y)"
             return f"{self.name}(x,y): {self.args[0]}(x,y) IMPLIES {self.args[1]}(x,y)"
-        if self.op == LogicOp.XOR:
-            if len(self.args) == 2:
-                return f"{self.name}(x,y): {self.args[0]}(x,y) XOR {self.args[1]}(x,y)"
-        if self.op == LogicOp.BICONDITIONAL:
-            if len(self.args) == 2:
-                return f"{self.name}(x,y): {self.args[0]}(x,y) BICONDITIONAL {self.args[1]}(x,y)"
-        # AND / OR genérico
+        if self.op == LogicOp.XOR and len(self.args) == 2:
+            return f"{self.name}(x,y): {self.args[0]}(x,y) XOR {self.args[1]}(x,y)"
+        if self.op == LogicOp.BICONDITIONAL and len(self.args) == 2:
+            return f"{self.name}(x,y): {self.args[0]}(x,y) BICONDITIONAL {self.args[1]}(x,y)"
         if len(self.args) == 2:
             return f"{self.name}(x,y): {self.args[0]}(x,y) {self.op} {self.args[1]}(x,y)"
         elif len(self.args) == 1:
@@ -177,7 +172,6 @@ class LogicQueryApp:
         self.op_combo.grid(row=rowb, column=1, sticky="w", pady=2)
 
         rowb += 1
-        # Nota: Todas las FPS son de dos variables (x, y), el modo constante está deshabilitado
         ttk.Label(builder, text="Comparar con:").grid(row=rowb, column=0, sticky="e", padx=4, pady=2)
         ttk.Label(builder, text="Otra fila (y) - Siempre activo", foreground="gray").grid(row=rowb, column=1, sticky="w", pady=2)
 
@@ -192,39 +186,35 @@ class LogicQueryApp:
         rowb += 1
         ttk.Button(builder, text="Guardar predicado", command=self.save_simple_predicate).grid(row=rowb, column=0, columnspan=2, pady=4)
 
-        # --- biblioteca de predicados + compuestos (MÁS GRANDE) ---
+        # --- biblioteca de predicados + compuestos ---
         lib = ttk.LabelFrame(main, text="Biblioteca de predicados / Fórmulas (FPS/FPC)", padding=8)
         lib.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=10, padx=(8,0))
         lib.grid_columnconfigure(0, weight=1)
         lib.grid_rowconfigure(0, weight=1)
 
-        # Frame principal para la biblioteca
         lib_main = ttk.Frame(lib)
         lib_main.grid(row=0, column=0, sticky="nsew")
         lib.grid_rowconfigure(0, weight=1)
         lib.grid_columnconfigure(0, weight=1)
 
-        # Lista de predicados (MÁS GRANDE)
         ttk.Label(lib_main, text="Predicados/Fórmulas guardados:").grid(row=0, column=0, sticky="w", pady=(0,5))
         self.pred_list = tk.Listbox(lib_main, height=12, width=50)
         self.pred_list.grid(row=1, column=0, sticky="nsew", pady=5)
         lib_main.grid_rowconfigure(1, weight=1)
         lib_main.grid_columnconfigure(0, weight=1)
-        
-        # Scrollbar para la lista
+
         sb = ttk.Scrollbar(lib_main, orient="vertical", command=self.pred_list.yview)
         self.pred_list.configure(yscrollcommand=sb.set)
         sb.grid(row=1, column=1, sticky="ns")
-        
-        # Botones para Ver Detalles, Editar y Ver Matriz
+
         button_frame = ttk.Frame(lib_main)
         button_frame.grid(row=2, column=0, sticky="w", pady=4)
 
-        ttk.Button(button_frame, text="Ver Detalles", 
+        ttk.Button(button_frame, text="Ver Detalles",
                    command=self.show_predicate_details_dialog).grid(row=0, column=0, padx=2)
-        ttk.Button(button_frame, text="Editar", 
+        ttk.Button(button_frame, text="Editar",
                    command=self.edit_predicate_dialog).grid(row=0, column=1, padx=2)
-        ttk.Button(button_frame, text="Ver Matriz", 
+        ttk.Button(button_frame, text="Ver Matriz",
                    command=self.show_predicate_matrix_dialog).grid(row=0, column=2, padx=2)
 
         # --- Constructor de fórmulas compuestas ---
@@ -232,7 +222,6 @@ class LogicQueryApp:
         comp_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(10,0))
         comp_frame.grid_columnconfigure(1, weight=1)
 
-        # Variables para fórmulas compuestas
         self.comp_op_var = tk.StringVar(value=LogicOp.AND)
         self.comp_arg1 = tk.StringVar()
         self.comp_arg2 = tk.StringVar()
@@ -262,7 +251,6 @@ class LogicQueryApp:
         matrix_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=10)
         matrix_frame.grid_columnconfigure(1, weight=1)
 
-        # Selección de predicados para operaciones
         ttk.Label(matrix_frame, text="Predicado 1:").grid(row=0, column=0, sticky="e", padx=4)
         self.matrix_pred1 = ttk.Combobox(matrix_frame, width=15, state="readonly")
         self.matrix_pred1.grid(row=0, column=1, sticky="w", pady=2)
@@ -271,16 +259,14 @@ class LogicQueryApp:
         self.matrix_pred2 = ttk.Combobox(matrix_frame, width=15, state="readonly")
         self.matrix_pred2.grid(row=1, column=1, sticky="w", pady=2)
 
-        # Operadores matriciales
         ttk.Label(matrix_frame, text="Operador:").grid(row=0, column=2, sticky="e", padx=4)
-        self.matrix_op = ttk.Combobox(matrix_frame, values=["AND", "OR", "XOR", "IMPLIES", "BICONDITIONAL"], 
+        self.matrix_op = ttk.Combobox(matrix_frame, values=["AND", "OR", "XOR", "IMPLIES", "BICONDITIONAL"],
                                       state="readonly", width=12)
         self.matrix_op.grid(row=0, column=3, sticky="w", pady=2)
 
         ttk.Button(matrix_frame, text="Ver Matriz", command=self.show_predicate_matrix).grid(row=1, column=2, pady=2)
         ttk.Button(matrix_frame, text="Aplicar Operador", command=self.apply_matrix_operator).grid(row=1, column=3, pady=2)
 
-        # Botón para NOT (solo necesita un predicado)
         ttk.Label(matrix_frame, text="Operador Unario:").grid(row=2, column=0, sticky="e", padx=4)
         self.not_pred = ttk.Combobox(matrix_frame, width=15, state="readonly")
         self.not_pred.grid(row=2, column=1, sticky="w", pady=2)
@@ -297,13 +283,23 @@ class LogicQueryApp:
 
         ttk.Label(runf, text="Cuantificador X:").grid(row=1, column=0, sticky="e", padx=4)
         self.quant_x = tk.StringVar(value="∀")
-        ttk.Combobox(runf, textvariable=self.quant_x, values=["∀","∃","(ninguno)"], state="readonly", width=10).grid(row=1, column=1, sticky="w")
+        ttk.Combobox(runf, textvariable=self.quant_x, values=["∀", "∃"], state="readonly", width=10).grid(row=1, column=1, sticky="w")
 
         ttk.Label(runf, text="Cuantificador Y:").grid(row=2, column=0, sticky="e", padx=4)
         self.quant_y = tk.StringVar(value="∃")
-        ttk.Combobox(runf, textvariable=self.quant_y, values=["∀","∃","(ninguno)"], state="readonly", width=10).grid(row=2, column=1, sticky="w")
+        ttk.Combobox(runf, textvariable=self.quant_y, values=["∀", "∃"], state="readonly", width=10).grid(row=2, column=1, sticky="w")
 
-        ttk.Button(runf, text="Ejecutar", command=self.execute_quantified_query).grid(row=0, column=2, rowspan=3, padx=10)
+        ttk.Label(runf, text="Orden cuantificadores:").grid(row=3, column=0, sticky="e", padx=4)
+        self.quant_order = tk.StringVar(value="X→Y")
+        ttk.Combobox(
+            runf,
+            textvariable=self.quant_order,
+            values=["X→Y", "Y→X"],
+            state="readonly",
+            width=10
+        ).grid(row=3, column=1, sticky="w")
+
+        ttk.Button(runf, text="Ejecutar", command=self.execute_quantified_query).grid(row=0, column=2, rowspan=4, padx=10)
 
         # --- resultados ---
         result_frame = ttk.LabelFrame(main, text="Resultados", padding=6)
@@ -326,12 +322,12 @@ class LogicQueryApp:
         for var in (self.attr_var, self.op_var):
             var.trace_add("write", lambda *args: self.update_preview())
 
-        # Configurar pesos de filas y columnas para mejor distribución
-        main.grid_rowconfigure(1, weight=2)  # Tabla dataset
-        main.grid_rowconfigure(2, weight=1)  # Constructor + Biblioteca
-        main.grid_rowconfigure(4, weight=0)  # Operaciones matrices
-        main.grid_rowconfigure(5, weight=0)  # Consultas cuantificadas
-        main.grid_rowconfigure(6, weight=1)  # Resultados
+        # pesos
+        main.grid_rowconfigure(1, weight=2)
+        main.grid_rowconfigure(2, weight=1)
+        main.grid_rowconfigure(4, weight=0)
+        main.grid_rowconfigure(5, weight=0)
+        main.grid_rowconfigure(6, weight=1)
 
     # ---------- dataset ----------
     def load_dataset(self):
@@ -347,7 +343,7 @@ class LogicQueryApp:
                 self.data = pd.read_excel(filename)
             else:
                 self.data = pd.read_csv(filename)
-            
+
             # Procesamiento mejorado de fechas
             date_columns = [col for col in self.data.columns if 'date' in col.lower() or 'fecha' in col.lower()]
             for col in date_columns:
@@ -358,7 +354,7 @@ class LogicQueryApp:
 
             cols = list(self.data.columns)
             self.attr_combo["values"] = cols
-            
+
             # Elección inteligente de ID por defecto
             if "Date" in cols:
                 self.id_column = "Date"
@@ -384,7 +380,6 @@ class LogicQueryApp:
             messagebox.showerror("Error", f"Error al cargar el archivo: {str(e)}")
 
     def display_data(self, df):
-        # limpiar tabla
         for w in self.table_frame.winfo_children():
             w.destroy()
         tree = ttk.Treeview(self.table_frame, show="headings")
@@ -403,15 +398,12 @@ class LogicQueryApp:
             tree.heading(c, text=c)
             tree.column(c, width=120)
 
-        # guardar referencia para resaltar
         self.data_tree = tree
         self.row_id_map = {}
 
-        # etiquetas para ejemplos/contraejemplos
         self.data_tree.tag_configure("example", background="lightgreen")
         self.data_tree.tag_configure("counterexample", background="lightcoral")
 
-        # paginado ligero: primeras 2000 filas
         max_rows = min(len(df), 2000)
         for _, row in df.iloc[:max_rows].iterrows():
             values = list(row)
@@ -424,37 +416,31 @@ class LogicQueryApp:
     def update_preview(self):
         attr = self.attr_var.get() or "<atributo>"
         op  = self.op_var.get() or ">"
-        # Todas las FPS son de dos variables (x, y)
         rhs_txt = f"y.{attr}"
         self.preview_var.set(f"Vista previa: p(x,y): x.{attr} {op} {rhs_txt}")
 
     def _parse_const_for_series(self, series, raw):
-        """Convierte constantes según dtype de la serie; si falla, devuelve string."""
         if raw is None or raw == "":
             raise ValueError("Constante vacía.")
         s = str(raw).strip()
 
-        # booleanos
         low = s.lower()
         if pd.api.types.is_bool_dtype(series):
             if low in {"true","1","t","sí","si","y"}: return True
             if low in {"false","0","f","no","n"}: return False
             raise ValueError("El valor debe ser booleano (true/false)")
 
-        # numéricos
         if pd.api.types.is_integer_dtype(series):
             return int(float(s))
         if pd.api.types.is_float_dtype(series):
             return float(s)
 
-        # fechas
         if pd.api.types.is_datetime64_any_dtype(series):
             try:
                 return pd.to_datetime(s, dayfirst=True, errors="raise")
             except Exception:
                 pass
 
-        # texto por defecto
         return s
 
     def _compare(self, a, b, op):
@@ -478,13 +464,11 @@ class LogicQueryApp:
         raise ValueError(f"Operador no válido: {op}")
 
     def _get_attr_map(self, attr):
-        """Devuelve dict id -> valor atributo para mostrar en matrices."""
         if self.data is None or self.id_column not in self.data.columns or attr not in self.data.columns:
             return {}
         return dict(zip(self.data[self.id_column], self.data[attr]))
 
     def _resolve_predicate_name_input(self, name):
-        """Intenta resolver nombres sin importar mayúsculas/minúsculas."""
         if not name:
             return None
         if name in self.predicates:
@@ -498,35 +482,29 @@ class LogicQueryApp:
         return None
 
     def _rename_predicate(self, old_name, new_name):
-        """Renombra un predicado en self.predicates y actualiza referencias."""
         if old_name == new_name or old_name not in self.predicates:
             return
         pred = self.predicates.pop(old_name)
         pred.name = new_name
         self.predicates[new_name] = pred
-        # Actualizar referencias en todas las fórmulas compuestas
         for p in self.predicates.values():
             if getattr(p, "type", None) == "compound":
                 p.args = [new_name if a == old_name else a for a in p.args]
 
     def highlight_dataset_rows(self, example_ids=None, counterexample_ids=None):
-        """Resalta filas del dataset como ejemplos (verde) y contraejemplos (rojo)."""
         if self.data_tree is None:
             return
         example_ids = set(example_ids or [])
         counterexample_ids = set(counterexample_ids or [])
 
-        # limpiar tags
         for item in self.data_tree.get_children():
             self.data_tree.item(item, tags=())
 
-        # ejemplos
         for id_val in example_ids:
             item = self.row_id_map.get(id_val)
             if item:
                 self.data_tree.item(item, tags=("example",))
 
-        # contraejemplos (tienen prioridad)
         for id_val in counterexample_ids:
             item = self.row_id_map.get(id_val)
             if item:
@@ -545,7 +523,7 @@ class LogicQueryApp:
         if not name:
             messagebox.showerror("Error", "Asigna un nombre al predicado (p.ej., p, q).")
             return
-        name = name.lower()  # FPS en minúsculas
+        name = name.lower()
         if name in self.predicates:
             messagebox.showerror("Error", f"Ya existe un predicado llamado '{name}'.")
             return
@@ -560,18 +538,14 @@ class LogicQueryApp:
             messagebox.showerror("Error", "Operador inválido.")
             return
 
-        # Todas las FPS son de dos variables (x, y) - modo constante deshabilitado
         rhs = {"type":"var","var": "Y"}
 
         sp = SimplePredicate(name, attr, op, lhs, rhs)
         self.predicates[name] = sp
-        self.pred_list.insert(tk.END, f"{name} (simple) :: {sp.caption()}")
+        # ▶ Mostrar sólo la consulta (sin "(simple)" ni "::")
+        self.pred_list.insert(tk.END, sp.caption())
         self.status_var.set(f"Predicado '{name}' guardado.")
-        
-        # Limpiar campos después de guardar
         self.pred_name_var.set("")
-        
-        # Actualizar combos de matrices
         self.update_predicate_combos()
 
     def save_compound(self):
@@ -579,7 +553,7 @@ class LogicQueryApp:
         if not name:
             messagebox.showerror("Error", "Asigna un nombre a la fórmula compuesta.")
             return
-        name = name.upper()  # FPC en mayúsculas
+        name = name.upper()
         if name in self.predicates:
             messagebox.showerror("Error", f"Ya existe un predicado/fórmula '{name}'.")
             return
@@ -609,245 +583,198 @@ class LogicQueryApp:
 
         cp = CompoundPredicate(name, op, args)
         self.predicates[name] = cp
-        self.pred_list.insert(tk.END, f"{name} (compuesta) :: {cp.caption()}")
+        # ▶ Mostrar sólo la consulta
+        self.pred_list.insert(tk.END, cp.caption())
         self.status_var.set(f"Fórmula '{name}' guardada.")
-        
-        # Limpiar campos después de guardar
         self.comp_name.set("")
         self.comp_arg1.set("")
         self.comp_arg2.set("")
-        
-        # Actualizar combos de matrices
         self.update_predicate_combos()
 
-    # ---------- NUEVO: Ver Matriz de cualquier proposición ----------
+    # ---------- Ver Matriz de cualquier proposición ----------
     def show_predicate_matrix_dialog(self):
-        """Muestra diálogo para seleccionar y ver matriz de cualquier predicado"""
         if not self.predicates:
             messagebox.showinfo("Información", "No hay predicados definidos")
             return
-        
+
         matrix_window = tk.Toplevel(self.root)
         matrix_window.title("Ver Matriz de Predicado")
         matrix_window.geometry("300x150")
-        
+
         ttk.Label(matrix_window, text="Seleccionar predicado:").pack(pady=10)
-        
+
         pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(matrix_window, textvariable=pred_var, 
-                                  values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
+        ttk.Combobox(matrix_window, textvariable=pred_var,
+                     values=list(self.predicates.keys()), state="readonly").pack(pady=5)
+
         def show_matrix():
             pred_name = pred_var.get()
             if not pred_name:
                 messagebox.showerror("Error", "Selecciona un predicado")
                 return
-            
             if self.data is not None and len(self.data) > 50:
                 if not messagebox.askyesno(
-                    "Advertencia", 
+                    "Advertencia",
                     f"El dataset tiene {len(self.data)} filas. "
                     f"Generar la matriz puede tomar tiempo. ¿Continuar?"
                 ):
                     return
-            
             matrix, ids = self.generate_truth_matrix(pred_name)
             if matrix is not None:
                 self.display_matrix(matrix, ids, ids, f"Matriz de {pred_name}", predicate_name=pred_name)
                 matrix_window.destroy()
-        
+
         ttk.Button(matrix_window, text="Ver Matriz", command=show_matrix).pack(pady=10)
 
     def show_predicate_details_dialog(self):
-        """Muestra diálogo para ver detalles de cualquier predicado"""
         if not self.predicates:
             messagebox.showinfo("Información", "No hay predicados definidos")
             return
-        
+
         details_window = tk.Toplevel(self.root)
         details_window.title("Ver Detalles de Predicado")
         details_window.geometry("400x300")
-        
+
         ttk.Label(details_window, text="Seleccionar predicado:").pack(pady=10)
-        
+
         pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(details_window, textvariable=pred_var, 
-                                  values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
+        ttk.Combobox(details_window, textvariable=pred_var,
+                     values=list(self.predicates.keys()), state="readonly").pack(pady=5)
+
         details_frame = ttk.Frame(details_window)
         details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+
         details_text = tk.Text(details_frame, height=10, width=50)
         scrollbar = ttk.Scrollbar(details_frame, orient="vertical", command=details_text.yview)
         details_text.configure(yscrollcommand=scrollbar.set)
-        
+
         details_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
+
         def update_details(*args):
             pred_name = pred_var.get()
             if pred_name in self.predicates:
                 pred = self.predicates[pred_name]
                 details_text.delete(1.0, tk.END)
-                
+                details_text.insert(tk.END, f"Nombre: {pred.name}\n")
                 if pred.type == "simple":
-                    details_text.insert(tk.END, f"Nombre: {pred.name}\n")
                     details_text.insert(tk.END, f"Tipo: Predicado Simple (FPS)\n")
                     details_text.insert(tk.END, f"Atributo: {pred.attr}\n")
                     details_text.insert(tk.END, f"Operador: {pred.op}\n")
                     details_text.insert(tk.END, f"Variable izquierda: {pred.lhs_var}\n")
-                    
                     if pred.rhs["type"] == "var":
                         details_text.insert(tk.END, f"Variable derecha: {pred.rhs['var']}\n")
                     else:
                         details_text.insert(tk.END, f"Constante: {pred.rhs['value']}\n")
-                        
-                    details_text.insert(tk.END, f"\nFórmula: {pred.caption()}")
-                    
-                else:  # compound
-                    details_text.insert(tk.END, f"Nombre: {pred.name}\n")
+                else:
                     details_text.insert(tk.END, f"Tipo: Fórmula Compuesta (FPC)\n")
                     details_text.insert(tk.END, f"Operador: {pred.op}\n")
                     details_text.insert(tk.END, f"Argumentos: {pred.args}\n")
-                    details_text.insert(tk.END, f"\nFórmula: {pred.caption()}")
-        
+                details_text.insert(tk.END, f"\nFórmula: {pred.caption()}")
+
         pred_var.trace_add("write", update_details)
-        
         ttk.Button(details_window, text="Cerrar", command=details_window.destroy).pack(pady=10)
 
     # ---------- Editar Predicado ----------
     def edit_predicate_dialog(self):
-        """Permite editar un predicado existente"""
         if not self.predicates:
             messagebox.showinfo("Información", "No hay predicados definidos")
             return
-        
+
         edit_window = tk.Toplevel(self.root)
         edit_window.title("Editar Predicado")
         edit_window.geometry("400x300")
-        
+
         ttk.Label(edit_window, text="Seleccionar predicado a editar:").pack(pady=10)
-        
+
         pred_var = tk.StringVar()
-        pred_combo = ttk.Combobox(edit_window, textvariable=pred_var, 
-                                  values=list(self.predicates.keys()), state="readonly")
-        pred_combo.pack(pady=5)
-        
+        ttk.Combobox(edit_window, textvariable=pred_var,
+                     values=list(self.predicates.keys()), state="readonly").pack(pady=5)
+
         edit_frame = ttk.Frame(edit_window)
         edit_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+
         def load_predicate_for_editing():
             pred_name = pred_var.get()
             if pred_name not in self.predicates:
                 return
-            
             pred = self.predicates[pred_name]
-            
             for widget in edit_frame.winfo_children():
                 widget.destroy()
-            
             if pred.type == "simple":
                 self._setup_simple_predicate_editing(edit_frame, pred, pred_name)
             else:
                 self._setup_compound_predicate_editing(edit_frame, pred, pred_name)
-        
+
         pred_var.trace_add("write", lambda *args: load_predicate_for_editing())
-        
         ttk.Button(edit_window, text="Cerrar", command=edit_window.destroy).pack(pady=10)
 
     def _setup_simple_predicate_editing(self, parent, pred, original_name):
-        """Configura interfaz para editar predicado simple"""
         row = 0
-        
         ttk.Label(parent, text="Nombre (minúsculas):").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         name_var = tk.StringVar(value=pred.name)
-        name_entry = ttk.Entry(parent, textvariable=name_var, width=20)
-        name_entry.grid(row=row, column=1, sticky="w", pady=2)
+        ttk.Entry(parent, textvariable=name_var, width=20).grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         ttk.Label(parent, text="Atributo:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         attr_var = tk.StringVar(value=pred.attr)
-        attr_combo = ttk.Combobox(
-            parent, textvariable=attr_var, 
-            values=list(self.data.columns) if self.data is not None else [],
-            state="readonly", width=20
-        )
-        attr_combo.grid(row=row, column=1, sticky="w", pady=2)
+        ttk.Combobox(parent, textvariable=attr_var,
+                     values=list(self.data.columns) if self.data is not None else [],
+                     state="readonly", width=20).grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         ttk.Label(parent, text="Operador:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         op_var = tk.StringVar(value=pred.op)
-        op_combo = ttk.Combobox(parent, textvariable=op_var, values=REL_OPS, 
-                                state="readonly", width=20)
-        op_combo.grid(row=row, column=1, sticky="w", pady=2)
+        ttk.Combobox(parent, textvariable=op_var, values=REL_OPS,
+                     state="readonly", width=20).grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
-        # Todas las FPS son de dos variables (x, y) - modo constante deshabilitado
+
         ttk.Label(parent, text="Comparar con:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         ttk.Label(parent, text="Otra fila (y) - Siempre activo", foreground="gray").grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         def save_changes():
             new_name = name_var.get().strip()
             if not new_name:
                 messagebox.showerror("Error", "El nombre no puede estar vacío")
                 return
             new_name = new_name.lower()
-            
             if new_name != original_name and new_name in self.predicates:
                 messagebox.showerror("Error", f"Ya existe un predicado llamado '{new_name}'")
                 return
-            
             pred.attr = attr_var.get()
             pred.op = op_var.get()
-            # Todas las FPS son de dos variables (x, y) - modo constante deshabilitado
             pred.rhs = {"type": "var", "var": "Y"}
-            
             if new_name != original_name:
                 self._rename_predicate(original_name, new_name)
-            
             self._refresh_predicate_list()
             parent.winfo_toplevel().destroy()
             messagebox.showinfo("Éxito", f"Predicado '{new_name}' actualizado")
-        
-        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(
-            row=row, column=0, columnspan=2, pady=10
-        )
+
+        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(row=row, column=0, columnspan=2, pady=10)
 
     def _setup_compound_predicate_editing(self, parent, pred, original_name):
-        """Configura interfaz para editar predicado compuesto"""
         row = 0
-        
         ttk.Label(parent, text="Nombre (mayúsculas):").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         name_var = tk.StringVar(value=pred.name)
-        name_entry = ttk.Entry(parent, textvariable=name_var, width=20)
-        name_entry.grid(row=row, column=1, sticky="w", pady=2)
+        ttk.Entry(parent, textvariable=name_var, width=20).grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         ttk.Label(parent, text="Operador:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         op_var = tk.StringVar(value=pred.op)
-        op_combo = ttk.Combobox(parent, textvariable=op_var, values=LOGIC_OPS, 
-                                state="readonly", width=20)
-        op_combo.grid(row=row, column=1, sticky="w", pady=2)
+        ttk.Combobox(parent, textvariable=op_var, values=LOGIC_OPS,
+                     state="readonly", width=20).grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         ttk.Label(parent, text="Argumento 1:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         arg1_var = tk.StringVar(value=pred.args[0] if pred.args else "")
-        arg1_combo = ttk.Combobox(
-            parent, textvariable=arg1_var, 
-            values=list(self.predicates.keys()), width=20
-        )
+        arg1_combo = ttk.Combobox(parent, textvariable=arg1_var, values=list(self.predicates.keys()), width=20)
         arg1_combo.grid(row=row, column=1, sticky="w", pady=2)
         row += 1
-        
+
         ttk.Label(parent, text="Argumento 2:").grid(row=row, column=0, sticky="e", padx=5, pady=2)
         arg2_var = tk.StringVar(value=pred.args[1] if len(pred.args) > 1 else "")
-        arg2_combo = ttk.Combobox(
-            parent, textvariable=arg2_var, 
-            values=list(self.predicates.keys()), width=20
-        )
+        arg2_combo = ttk.Combobox(parent, textvariable=arg2_var, values=list(self.predicates.keys()), width=20)
         arg2_combo.grid(row=row, column=1, sticky="w", pady=2)
         row += 1
 
@@ -867,11 +794,10 @@ class LogicQueryApp:
                 messagebox.showerror("Error", "El nombre no puede estar vacío")
                 return
             new_name = new_name.upper()
-            
             if new_name != original_name and new_name in self.predicates:
                 messagebox.showerror("Error", f"Ya existe un predicado llamado '{new_name}'")
                 return
-            
+
             new_op = op_var.get()
             a1 = self._resolve_predicate_name_input(arg1_var.get().strip())
             a2 = self._resolve_predicate_name_input(arg2_var.get().strip()) if arg2_var.get().strip() else None
@@ -894,44 +820,33 @@ class LogicQueryApp:
 
             pred.op = new_op
             pred.args = new_args
-
             if new_name != original_name:
                 self._rename_predicate(original_name, new_name)
-            
             self._refresh_predicate_list()
             parent.winfo_toplevel().destroy()
             messagebox.showinfo("Éxito", f"Fórmula '{new_name}' actualizada")
-        
-        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(
-            row=row, column=0, columnspan=2, pady=10
-        )
+
+        ttk.Button(parent, text="Guardar Cambios", command=save_changes).grid(row=row, column=0, columnspan=2, pady=10)
 
     def _refresh_predicate_list(self):
-        """Actualiza la lista de predicados en la interfaz"""
+        """Actualiza la lista (solo la consulta)."""
         self.pred_list.delete(0, tk.END)
         for name, pred in self.predicates.items():
-            if pred.type == "simple":
-                self.pred_list.insert(tk.END, f"{name} (simple) :: {pred.caption()}")
-            else:
-                self.pred_list.insert(tk.END, f"{name} (compuesta) :: {pred.caption()}")
-        
+            self.pred_list.insert(tk.END, pred.caption())
         self.update_predicate_combos()
 
     # ---------- evaluación ----------
     def _eval_predicate(self, name, x=None, y=None):
-        """Evalúa un predicado/fórmula dados IDs concretos (x,y)."""
         pred = self.predicates[name]
         if pred.type == "simple":
             series = self.data[pred.attr]
             if x is None:
                 return False
-            # valor de X
             try:
                 lv = series.loc[self.data[self.id_column] == x].iloc[0]
             except Exception:
                 return False
 
-            # valor de Y o constante
             if pred.rhs["type"] == "var":
                 if y is None:
                     return False
@@ -947,7 +862,6 @@ class LogicQueryApp:
             except Exception:
                 return False
 
-        # compuesta
         if pred.type == "compound":
             if pred.op == LogicOp.NOT:
                 return not self._eval_predicate(pred.args[0], x, y)
@@ -970,98 +884,88 @@ class LogicQueryApp:
         return False
 
     def _domains(self):
-        """Devuelve dominios de X e Y (para v1: todos los IDs)."""
         if self.data is None or not self.id_column:
             return [], []
         ids = list(self.data[self.id_column])
         return ids, ids
 
-    # ---------- MATRICES NxN (OPTIMIZADO) ----------
+    # ---------- MATRICES NxN ----------
     def generate_truth_matrix(self, predicate_name):
-        """Genera matriz NxN de verdad para un predicado."""
         if self.data is None or predicate_name not in self.predicates:
             return None, []
-        
+
         ids = self._get_domain_ids()
         n_original = len(ids)
         n = n_original
-        
+
         max_size = 100
         if n > max_size:
             ids = ids[:max_size]
             n = max_size
             messagebox.showwarning(
-                "Advertencia", 
+                "Advertencia",
                 f"Dataset muy grande. Mostrando matriz {max_size}x{max_size} en lugar de {n_original}x{n_original}"
             )
-        
+
         matrix = np.zeros((n, n), dtype=bool)
-        
-        pred = self.predicates[predicate_name]
-        
+
+        progress_window = None
+        progress_var = None
         if n > 20:
             progress_window = tk.Toplevel(self.root)
             progress_window.title("Generando Matriz")
             progress_window.geometry("300x100")
             ttk.Label(progress_window, text="Generando matriz, por favor espere...").pack(pady=10)
             progress_var = tk.DoubleVar()
-            progress_bar = ttk.Progressbar(progress_window, variable=progress_var, maximum=n)
-            progress_bar.pack(pady=10, padx=20, fill=tk.X)
+            ttk.Progressbar(progress_window, variable=progress_var, maximum=n).pack(pady=10, padx=20, fill=tk.X)
             progress_window.update()
-        
+
+        pred = self.predicates[predicate_name]
         for i, x in enumerate(ids):
             for j, y in enumerate(ids):
                 matrix[i][j] = self._eval_predicate(predicate_name, x, y)
-            if n > 20:
+            if progress_window is not None:
                 progress_var.set(i + 1)
                 progress_window.update()
-        
-        if n > 20:
+
+        if progress_window is not None:
             progress_window.destroy()
-        
+
         return matrix, ids
 
     def _get_domain_ids(self):
-        """Obtiene la lista de IDs del dominio"""
         if self.data is None or not self.id_column:
             return []
         return list(self.data[self.id_column])
 
     def display_matrix(self, matrix, row_labels, col_labels, title, predicate_name=None):
-        """Muestra una matriz en una ventana flotante con información adicional."""
+        """X a la izquierda (filas) y Y arriba (columnas)."""
         matrix_window = tk.Toplevel(self.root)
         matrix_window.title(f"Matriz: {title}")
         matrix_window.geometry("1000x650")
-        
+
         main_frame = ttk.Frame(matrix_window, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
         matrix_window.grid_rowconfigure(0, weight=1)
         matrix_window.grid_columnconfigure(0, weight=1)
 
-        # Determinar predicado y preparar encabezados
-        if predicate_name and predicate_name in self.predicates:
-            pred = self.predicates[predicate_name]
-        else:
-            pred = None
-        header_lines = [title]
+        # Encabezado con la consulta en notación de libro
+        pred = self.predicates.get(predicate_name) if predicate_name in self.predicates else None
+        header_lines = []
         if pred is not None:
-            header_lines = [f"Predicado {pred.name}: {pred.caption()}"]
+            header_lines.append(pred.caption())  # solo la consulta
         if self.id_column:
             header_lines.append(f"Columna ID: {self.id_column}")
-        ttk.Label(
-            main_frame,
-            text="\n".join(header_lines),
-            font=("TkDefaultFont", 10, "bold")
-        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        ttk.Label(main_frame, text="\n".join(header_lines), font=("TkDefaultFont", 10, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 10))
 
-        # Ajuste de orientación: columnas corresponden a X, filas corresponden a Y
-        display_cols = list(row_labels)
-        display_rows = list(col_labels)
-        matrix_to_render = matrix.T
+        # X = filas ; Y = columnas  (sin transponer)
+        display_rows = list(row_labels)  # X
+        display_cols = list(col_labels)  # Y
+        matrix_to_render = matrix
 
         current_row = 1
 
-        # Parte superior: tablas de valores de atributo para FPS
+        # Tablas de apoyo con valores del atributo (para FPS)
         if pred is not None and getattr(pred, "type", None) == "simple" and pred.rhs["type"] == "var":
             attr = pred.attr
             attr_map = self._get_attr_map(attr)
@@ -1074,7 +978,7 @@ class LogicQueryApp:
             ttk.Label(info_frame, text=f"Valores de atributo para X (x.{attr}):").grid(row=0, column=0, sticky="w")
             ttk.Label(info_frame, text=f"Valores de atributo para Y (y.{attr}):").grid(row=0, column=1, sticky="w")
 
-            x_tree = ttk.Treeview(info_frame, show="headings", height=min(len(display_cols), 8))
+            x_tree = ttk.Treeview(info_frame, show="headings", height=min(len(display_rows), 8))
             x_tree["columns"] = ("var", "id", "val")
             x_tree.heading("var", text="Var")
             x_tree.heading("id", text="ID")
@@ -1084,7 +988,7 @@ class LogicQueryApp:
             x_tree.column("val", width=180)
             x_tree.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-            y_tree = ttk.Treeview(info_frame, show="headings", height=min(len(display_rows), 8))
+            y_tree = ttk.Treeview(info_frame, show="headings", height=min(len(display_cols), 8))
             y_tree["columns"] = ("var", "id", "val")
             y_tree.heading("var", text="Var")
             y_tree.heading("id", text="ID")
@@ -1094,70 +998,46 @@ class LogicQueryApp:
             y_tree.column("val", width=180)
             y_tree.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
-            for xid in display_cols:
+            for xid in display_rows:
                 x_tree.insert("", "end", values=("x", xid, attr_map.get(xid, "")))
-            for yid in display_rows:
+            for yid in display_cols:
                 y_tree.insert("", "end", values=("y", yid, attr_map.get(yid, "")))
 
-            current_row += 1  # siguiente fila para la matriz
+            current_row += 1
 
         # Canvas con scroll para la matriz
         canvas = tk.Canvas(main_frame)
         scrollbar_y = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
         scrollbar_x = ttk.Scrollbar(main_frame, orient="horizontal", command=canvas.xview)
-        
+
         scrollable_frame = ttk.Frame(canvas)
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
-        
+
         n_rows, n_cols = matrix_to_render.shape
 
-        # Etiquetas de ejes
-        axis_y = tk.Label(
-            scrollable_frame,
-            text="y",
-            bg="lightgrey",
-            width=12,
-            relief="raised",
-            borderwidth=1
-        )
-        axis_y.grid(row=0, column=0, padx=1, pady=1)
+        # Etiquetas de ejes (estilo libro)
+        tl = tk.Label(scrollable_frame, text="y", bg="lightgrey", width=4, relief="raised", borderwidth=1)
+        tl.grid(row=0, column=0, padx=1, pady=1)
 
-        axis_x = tk.Label(
-            scrollable_frame,
-            text="x",
-            bg="lightgrey",
-            width=12,
-            relief="raised",
-            borderwidth=1
-        )
-        axis_x.grid(row=0, column=1, columnspan=n_cols, sticky="we", padx=1, pady=1)
-
-        # Encabezados de columnas: IDs de X
+        # Encabezados de columnas: IDs de Y
         for j, col_label in enumerate(display_cols):
-            label = tk.Label(scrollable_frame, text=f"x={col_label}", bg="lightblue", width=12, relief="raised")
-            label.grid(row=1, column=j+1, padx=1, pady=1)
+            label = tk.Label(scrollable_frame, text=f"y={col_label}", bg="lightblue", width=12, relief="raised")
+            label.grid(row=0, column=j+1, padx=1, pady=1)
 
-        # Filas con datos (IDs de Y)
+        # Filas con datos: IDs de X
         for i in range(n_rows):
-            row_label = tk.Label(scrollable_frame, text=f"y={display_rows[i]}", bg="lightblue", width=12, relief="raised")
-            row_label.grid(row=i+2, column=0, padx=1, pady=1)
-            
+            row_label = tk.Label(scrollable_frame, text=f"x={display_rows[i]}", bg="lightblue", width=12, relief="raised")
+            row_label.grid(row=i+1, column=0, padx=1, pady=1)
+
             for j in range(n_cols):
                 value = matrix_to_render[i][j]
                 bg_color = "lightgreen" if value else "lightcoral"
                 text = "V" if value else "F"
-                cell = tk.Label(
-                    scrollable_frame, text=text, bg=bg_color, width=4, height=1,
-                    relief="raised", borderwidth=1
-                )
-                cell.grid(row=i+2, column=j+1, padx=1, pady=1)
-        
+                cell = tk.Label(scrollable_frame, text=text, bg=bg_color, width=4, height=1, relief="raised", borderwidth=1)
+                cell.grid(row=i+1, column=j+1, padx=1, pady=1)
+
         canvas.grid(row=current_row, column=0, sticky="nsew")
         scrollbar_y.grid(row=current_row, column=1, sticky="ns")
         scrollbar_x.grid(row=current_row+1, column=0, sticky="ew")
@@ -1192,10 +1072,7 @@ class LogicQueryApp:
     def matrix_BICONDITIONAL(self, matrix1, matrix2):
         if matrix1.shape != matrix2.shape:
             raise ValueError("Las matrices deben tener la misma dimensión")
-        return np.logical_and(
-            self.matrix_IMPLIES(matrix1, matrix2),
-            self.matrix_IMPLIES(matrix2, matrix1)
-        )
+        return np.logical_and(self.matrix_IMPLIES(matrix1, matrix2), self.matrix_IMPLIES(matrix2, matrix1))
 
     def update_predicate_combos(self):
         pred_names = list(self.predicates.keys())
@@ -1204,62 +1081,54 @@ class LogicQueryApp:
         self.not_pred['values'] = pred_names
 
     def show_predicate_matrix(self):
-        """Muestra la matriz de verdad de un predicado seleccionado en el panel de matrices"""
         pred_name = self.matrix_pred1.get()
         if not pred_name or pred_name not in self.predicates:
             messagebox.showerror("Error", "Selecciona un predicado válido")
             return
-        
+
         if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno(
-                "Advertencia", 
-                f"El dataset tiene {len(self.data)} filas. "
-                f"Generar la matriz puede tomar tiempo. ¿Continuar?"
-            ):
+            if not messagebox.askyesno("Advertencia",
+                                       f"El dataset tiene {len(self.data)} filas. "
+                                       f"Generar la matriz puede tomar tiempo. ¿Continuar?"):
                 return
-        
+
         matrix, ids = self.generate_truth_matrix(pred_name)
         if matrix is not None:
             self.display_matrix(matrix, ids, ids, f"Matriz de {pred_name}", predicate_name=pred_name)
 
     def apply_matrix_operator(self):
-        """Aplica operador binario a dos matrices y guarda con nombre (FPC nueva)"""
         pred1 = self.matrix_pred1.get()
         pred2 = self.matrix_pred2.get()
         op = self.matrix_op.get()
-        
+
         if not all([pred1, pred2, op]):
             messagebox.showerror("Error", "Selecciona dos predicados y un operador")
             return
-        
+
         if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno(
-                "Advertencia", 
-                f"El dataset tiene {len(self.data)} filas. "
-                f"Generar las matrices puede tomar tiempo. ¿Continuar?"
-            ):
+            if not messagebox.askyesno("Advertencia",
+                                       f"El dataset tiene {len(self.data)} filas. "
+                                       f"Generar las matrices puede tomar tiempo. ¿Continuar?"):
                 return
-        
-        result_name = simpledialog.askstring(
-            "Nombre del Resultado", 
-            "Ingresa un nombre para guardar el resultado (FPC, mayúsculas):",
-            parent=self.root
-        )
+
+        result_name = simpledialog.askstring("Nombre del Resultado",
+                                             "Ingresa un nombre para guardar el resultado (FPC, mayúsculas):",
+                                             parent=self.root)
         if not result_name:
             return
-        
+
         result_name = result_name.upper()
         if result_name in self.predicates:
             messagebox.showerror("Error", f"Ya existe un predicado llamado '{result_name}'")
             return
-        
+
         matrix1, ids1 = self.generate_truth_matrix(pred1)
         matrix2, ids2 = self.generate_truth_matrix(pred2)
-        
+
         if matrix1 is None or matrix2 is None:
             messagebox.showerror("Error", "No se pudieron generar las matrices")
             return
-        
+
         try:
             if op == "AND":
                 result = self.matrix_AND(matrix1, matrix2)
@@ -1279,59 +1148,211 @@ class LogicQueryApp:
             else:
                 messagebox.showerror("Error", "Operador no válido")
                 return
-            
+
             comp_pred = CompoundPredicate(result_name, logic_op, [pred1, pred2])
             self.predicates[result_name] = comp_pred
-            
-            self.pred_list.insert(tk.END, f"{result_name} (compuesta) :: {comp_pred.caption()}")
+
+            # Mostrar sólo la consulta
+            self.pred_list.insert(tk.END, comp_pred.caption())
             self.update_predicate_combos()
-            
+
             self.display_matrix(result, ids1, ids2, f"{result_name} ({pred1} {op} {pred2})", predicate_name=result_name)
             messagebox.showinfo("Éxito", f"Operación guardada como: {result_name}")
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Error aplicando operador: {e}")
 
     def apply_matrix_not(self):
-        """Aplica NOT a una matriz y guarda con nombre"""
         pred_name = self.not_pred.get()
         if not pred_name:
             messagebox.showerror("Error", "Selecciona un predicado")
             return
-        
+
         if self.data is not None and len(self.data) > 50:
-            if not messagebox.askyesno(
-                "Advertencia", 
-                f"El dataset tiene {len(self.data)} filas. "
-                f"Generar la matriz puede tomar tiempo. ¿Continuar?"
-            ):
+            if not messagebox.askyesno("Advertencia",
+                                       f"El dataset tiene {len(self.data)} filas. "
+                                       f"Generar la matriz puede tomar tiempo. ¿Continuar?"):
                 return
-        
-        result_name = simpledialog.askstring(
-            "Nombre del Resultado", 
-            "Ingresa un nombre para guardar el resultado (FPC, mayúsculas):",
-            parent=self.root
-        )
+
+        result_name = simpledialog.askstring("Nombre del Resultado",
+                                             "Ingresa un nombre para guardar el resultado (FPC, mayúsculas):",
+                                             parent=self.root)
         if not result_name:
             return
-        
+
         result_name = result_name.upper()
         if result_name in self.predicates:
             messagebox.showerror("Error", f"Ya existe un predicado llamado '{result_name}'")
             return
-        
+
         matrix, ids = self.generate_truth_matrix(pred_name)
         if matrix is not None:
             result = self.matrix_NOT(matrix)
-            
+
             comp_pred = CompoundPredicate(result_name, LogicOp.NOT, [pred_name])
             self.predicates[result_name] = comp_pred
-            
-            self.pred_list.insert(tk.END, f"{result_name} (compuesta) :: {comp_pred.caption()}")
+
+            self.pred_list.insert(tk.END, comp_pred.caption())
             self.update_predicate_combos()
-            
+
             self.display_matrix(result, ids, ids, f"{result_name} (NOT {pred_name})", predicate_name=result_name)
             messagebox.showinfo("Éxito", f"Operación guardada como: {result_name}")
+
+    # ---------- APLICAR CUANTIFICADORES ANIDADOS ----------
+    def _quantified_notation(self, q1, q2, order, formula_name):
+        """Devuelve la consulta en notación de libro."""
+        if order == "X→Y":
+            return f"{q1}x {q2}y {formula_name}(x,y)"
+        else:
+            return f"{q1}y {q2}x {formula_name}(x,y)"
+
+    def _apply_nested_quantifiers(self, matrix, ids, q1, q2, order, formula_name):
+        """
+        Implementa los 6 casos sobre la matriz T (ids está en el mismo orden para X y Y).
+        Devuelve: (mensaje_resumen, df_resultado, example_ids, counter_ids)
+        """
+        example_ids = set()
+        counter_ids = set()
+        df = None
+        qstr = self._quantified_notation(q1, q2, order, formula_name)
+
+        # Orden X→Y (barrido por filas)
+        if order == "X→Y":
+            if q1 == "∃" and q2 == "∃":
+                if np.any(matrix):
+                    i, j = np.argwhere(matrix)[0]
+                    x_id, y_id = ids[i], ids[j]
+                    msg = f"✅ {qstr} es VERDADERA. Testigo (x,y)=({x_id}, {y_id})."
+                    example_ids.update([x_id, y_id])
+                    df = pd.DataFrame({"x":[x_id], "y":[y_id]})
+                else:
+                    msg = f"❌ {qstr} es FALSA. (Toda la matriz es F). Contraejemplo: no existe ningún par (x,y) verdadero."
+                    df = pd.DataFrame(columns=["x","y"])
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∀" and q2 == "∀":
+                if np.all(matrix):
+                    msg = f"✅ {qstr} es VERDADERA (toda la matriz es V)."
+                    example_ids.update(ids)
+                    df = None
+                else:
+                    bad_coords = np.argwhere(~matrix)
+                    i, j = bad_coords[0]
+                    x_id, y_id = ids[int(i)], ids[int(j)]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: (x={x_id}, y={y_id}) con valor F."
+                    rows = [ids[i] for i, _ in bad_coords[:200]]
+                    cols = [ids[j] for _, j in bad_coords[:200]]
+                    df = pd.DataFrame({"x": rows, "y": cols})
+                    counter_ids.update(rows + cols)
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∃" and q2 == "∀":
+                row_all = matrix.all(axis=1)
+                idxs = np.where(row_all)[0]
+                if len(idxs) > 0:
+                    i = int(idxs[0])
+                    x_id = ids[i]
+                    msg = f"✅ {qstr} es VERDADERA. Testigo x={x_id} (fila completa V)."
+                    example_ids.add(x_id); example_ids.update(ids)
+                    df = pd.DataFrame({"x_testigo":[x_id]})
+                else:
+                    # contraejemplo: cualquier fila; elegimos la primera fila con algún F y señalamos un y concreto
+                    i = int(np.where(~row_all)[0][0])
+                    j = int(np.where(~matrix[i])[0][0])
+                    x_id, y_id = ids[i], ids[j]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: para x={x_id} existe y={y_id} con F (de hecho, toda la fila es F)."
+                    df = pd.DataFrame({"x_sin_todo_V": [x_id]})
+                    counter_ids.add(x_id); counter_ids.add(y_id)
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∀" and q2 == "∃":
+                row_any = matrix.any(axis=1)
+                bad_idxs = np.where(~row_any)[0]
+                if len(bad_idxs) == 0:
+                    msg = f"✅ {qstr} es VERDADERA. Cada fila tiene al menos un V."
+                    example_ids.update(ids)
+                    df = None
+                else:
+                    i = int(bad_idxs[0])
+                    # toda la fila i es F; tomamos el primer y de esa fila
+                    j = int(np.where(~matrix[i])[0][0])
+                    x_id, y_id = ids[i], ids[j]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: x={x_id} no tiene ningún y con V (por ejemplo y={y_id})."
+                    bad_ids = [ids[int(k)] for k in bad_idxs]
+                    df = pd.DataFrame({"x_sin_testigo_y": bad_ids})
+                    counter_ids.update(bad_ids + [y_id])
+                return msg, df, example_ids, counter_ids
+
+            raise ValueError("Combinación no soportada para orden X→Y.")
+
+        # Orden Y→X (barrido por columnas)
+        if order == "Y→X":
+            if q1 == "∃" and q2 == "∃":
+                if np.any(matrix):
+                    i, j = np.argwhere(matrix)[0]
+                    x_id, y_id = ids[i], ids[j]
+                    msg = f"✅ {qstr} es VERDADERA. Testigo (y,x)=({y_id}, {x_id})."
+                    example_ids.update([x_id, y_id])
+                    df = pd.DataFrame({"y":[y_id], "x":[x_id]})
+                else:
+                    msg = f"❌ {qstr} es FALSA. (Toda la matriz es F)."
+                    df = pd.DataFrame(columns=["y","x"])
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∀" and q2 == "∀":
+                if np.all(matrix):
+                    msg = f"✅ {qstr} es VERDADERA (toda la matriz es V)."
+                    example_ids.update(ids)
+                    df = None
+                else:
+                    bad_coords = np.argwhere(~matrix)
+                    i, j = bad_coords[0]
+                    x_id, y_id = ids[int(i)], ids[int(j)]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: (y={y_id}, x={x_id}) con F."
+                    rows = [ids[i] for i, _ in bad_coords[:200]]
+                    cols = [ids[j] for _, j in bad_coords[:200]]
+                    df = pd.DataFrame({"y": cols, "x": rows})
+                    counter_ids.update(rows + cols)
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∃" and q2 == "∀":
+                col_all = matrix.all(axis=0)
+                idxs = np.where(col_all)[0]
+                if len(idxs) > 0:
+                    j = int(idxs[0])
+                    y_id = ids[j]
+                    msg = f"✅ {qstr} es VERDADERA. Testigo y={y_id} (columna completa V)."
+                    example_ids.add(y_id); example_ids.update(ids)
+                    df = pd.DataFrame({"y_testigo":[y_id]})
+                else:
+                    j = int(np.where(~col_all)[0][0])
+                    i = int(np.where(~matrix[:, j])[0][0])
+                    y_id, x_id = ids[j], ids[i]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: para y={y_id} existe x={x_id} con F (de hecho, ninguna columna es toda V)."
+                    df = pd.DataFrame({"y_sin_todo_V":[y_id]})
+                    counter_ids.update([y_id, x_id])
+                return msg, df, example_ids, counter_ids
+
+            if q1 == "∀" and q2 == "∃":
+                col_any = matrix.any(axis=0)
+                bad_idxs = np.where(~col_any)[0]
+                if len(bad_idxs) == 0:
+                    msg = f"✅ {qstr} es VERDADERA. Cada columna tiene al menos un V."
+                    example_ids.update(ids)
+                    df = None
+                else:
+                    j = int(bad_idxs[0])
+                    i = int(np.where(~matrix[:, j])[0][0])
+                    y_id, x_id = ids[j], ids[i]
+                    msg = f"❌ {qstr} es FALSA. Contraejemplo: y={y_id} no tiene ningún x con V (por ejemplo x={x_id})."
+                    bad_ids = [ids[int(k)] for k in bad_idxs]
+                    df = pd.DataFrame({"y_sin_testigo_x": bad_ids})
+                    counter_ids.update(bad_ids + [x_id])
+                return msg, df, example_ids, counter_ids
+
+            raise ValueError("Combinación no soportada para orden Y→X.")
+
+        raise ValueError("Orden de cuantificadores no reconocido.")
 
     # ---------- CONSULTAS CUANTIFICADAS ----------
     def execute_quantified_query(self):
@@ -1347,190 +1368,33 @@ class LogicQueryApp:
 
         qx = self.quant_x.get()
         qy = self.quant_y.get()
+        order = self.quant_order.get()
 
         ids_x, ids_y = self._domains()
         if not ids_x or not ids_y:
             messagebox.showerror("Error", "No hay dominio para X/Y (revisa la columna ID).")
             return
 
-        qx = None if qx == "(ninguno)" else qx
-        qy = None if qy == "(ninguno)" else qy
+        try:
+            matrix, ids = self.generate_truth_matrix(formula_name)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo generar la matriz de verdad: {e}")
+            return
 
-        result_summary = ""
-        counter_df = None
-        example_ids = set()
-        counter_ids = set()
+        if matrix is None or len(ids) == 0:
+            messagebox.showerror("Error", "Matriz de verdad vacía o no válida.")
+            return
 
         try:
-            if qx == "∀" and qy == "∃":
-                # ∀X ∃Y φ(X,Y)
-                bad_x = []
-                good_pairs = []
-                for x in ids_x:
-                    ok = False
-                    for y in ids_y:
-                        if self._eval_predicate(formula_name, x, y):
-                            ok = True
-                            good_pairs.append((x, y))
-                            break
-                    if not ok:
-                        bad_x.append(x)
-                if len(bad_x) == 0:
-                    result_summary = f"✅ Se cumple ∀X ∃Y {formula_name}"
-                else:
-                    result_summary = f"❌ No se cumple ∀X ∃Y {formula_name}. Contraejemplos (X sin Y que satisfaga): {len(bad_x)}"
-                    counter_df = pd.DataFrame({"X_sin_testigo_Y": bad_x})
-                # ejemplos y contraejemplos
-                for x, y in good_pairs:
-                    example_ids.add(x)
-                    example_ids.add(y)
-                counter_ids.update(bad_x)
-
-            elif qx == "∀" and qy is None:
-                # ∀X φ(X)
-                bad_x = []
-                for x in ids_x:
-                    if not self._eval_predicate(formula_name, x, None):
-                        bad_x.append(x)
-                if len(bad_x) == 0:
-                    result_summary = f"✅ Se cumple ∀X {formula_name}"
-                else:
-                    result_summary = f"❌ No se cumple ∀X {formula_name}. Contraejemplos: {len(bad_x)}"
-                    counter_df = pd.DataFrame({"X_contraejemplo": bad_x})
-                counter_ids.update(bad_x)
-                example_ids.update(set(ids_x) - set(bad_x))
-
-            elif qx == "∃" and qy == "∀":
-                # ∃X ∀Y φ(X,Y)
-                witness = None
-                bad_y_for_first = []
-                for x in ids_x:
-                    all_ok = True
-                    bad_y = []
-                    for y in ids_y:
-                        if not self._eval_predicate(formula_name, x, y):
-                            all_ok = False
-                            bad_y.append(y)
-                    if all_ok:
-                        witness = x
-                        break
-                    else:
-                        if not bad_y_for_first:
-                            bad_y_for_first = bad_y
-                if witness is not None:
-                    result_summary = f"✅ Se cumple ∃X ∀Y {formula_name}. Testigo X={witness}"
-                    example_ids.add(witness)
-                    example_ids.update(ids_y)
-                else:
-                    result_summary = f"❌ No se cumple ∃X ∀Y {formula_name}."
-                    counter_df = pd.DataFrame({"Y_donde_falla_para_cualquier_X_evaluado": bad_y_for_first})
-                    counter_ids.update(bad_y_for_first)
-
-            elif qx == "∃" and qy == "∃":
-                # ∃X ∃Y φ(X,Y)
-                witness = None
-                for x in ids_x:
-                    for y in ids_y:
-                        if self._eval_predicate(formula_name, x, y):
-                            witness = (x, y)
-                            break
-                    if witness:
-                        break
-                if witness:
-                    result_summary = f"✅ Se cumple ∃X ∃Y {formula_name}. Testigo (X,Y)={witness}"
-                    example_ids.update(witness)
-                else:
-                    result_summary = f"❌ No se cumple ∃X ∃Y {formula_name}."
-                    counter_df = pd.DataFrame(columns=["No hay pares (X,Y) que satisfagan"])
-
-            elif qx == "∃" and qy is None:
-                # ∃X φ(X)
-                witness = None
-                for x in ids_x:
-                    if self._eval_predicate(formula_name, x, None):
-                        witness = x
-                        break
-                if witness is not None:
-                    result_summary = f"✅ Se cumple ∃X {formula_name}. Testigo X={witness}"
-                    example_ids.add(witness)
-                else:
-                    result_summary = f"❌ No se cumple ∃X {formula_name}."
-                    counter_df = pd.DataFrame(columns=["No hay X que satisfaga"])
-
-            elif qx is None and qy in ("∀", "∃"):
-                # Formalmente, tu FPS depende de X; estos casos quedan limitados
-                if qy == "∀":
-                    bad_y = []
-                    for y in ids_y:
-                        if not self._eval_predicate(formula_name, None, y):
-                            bad_y.append(y)
-                    if len(bad_y) == 0:
-                        result_summary = f"✅ Se cumple ∀Y {formula_name}"
-                    else:
-                        result_summary = f"❌ No se cumple ∀Y {formula_name}. Contraejemplos: {len(bad_y)}"
-                        counter_df = pd.DataFrame({"Y_contraejemplo": bad_y})
-                        counter_ids.update(bad_y)
-                else:  # ∃Y
-                    witness = None
-                    for y in ids_y:
-                        if self._eval_predicate(formula_name, None, y):
-                            witness = y
-                            break
-                    if witness is not None:
-                        result_summary = f"✅ Se cumple ∃Y {formula_name}. Testigo Y={witness}"
-                        example_ids.add(witness)
-                    else:
-                        result_summary = f"❌ No se cumple ∃Y {formula_name}."
-                        counter_df = pd.DataFrame(columns=["No hay Y que satisfaga"])
-
-            elif qx == "∀" and qy == "∀":
-                # ∀X ∀Y φ(X,Y)
-                bad_pairs = []
-                for x in ids_x:
-                    for y in ids_y:
-                        if not self._eval_predicate(formula_name, x, y):
-                            bad_pairs.append((x, y))
-                if len(bad_pairs) == 0:
-                    result_summary = f"✅ Se cumple ∀X ∀Y {formula_name}"
-                else:
-                    result_summary = f"❌ No se cumple ∀X ∀Y {formula_name}. Pares que fallan: {len(bad_pairs)}"
-                    counter_df = pd.DataFrame(bad_pairs, columns=["X", "Y"])
-                    for x, y in bad_pairs:
-                        counter_ids.add(x)
-                        counter_ids.add(y)
-
-            elif qx is None and qy is None:
-                # Evaluación sin cuantificadores: listar pares que satisfacen
-                result_summary = f"Evaluación de {formula_name} sin cuantificadores"
-                all_results = []
-                for x in ids_x:
-                    for y in ids_y:
-                        if self._eval_predicate(formula_name, x, y):
-                            all_results.append((x, y))
-                if all_results:
-                    result_summary += f" - {len(all_results)} pares satisfacen la fórmula"
-                    counter_df = pd.DataFrame(all_results, columns=["X", "Y"])
-                    for x, y in all_results:
-                        example_ids.add(x)
-                        example_ids.add(y)
-                else:
-                    result_summary += " - Ningún par satisface la fórmula"
-                    counter_df = pd.DataFrame(columns=["X", "Y"])
-
-            else:
-                messagebox.showinfo("Aviso", "Combinación de cuantificadores no implementada en esta versión.")
-                return
-
-            # Mostrar resultados
-            self.populate_results(counter_df, result_summary)
-            # Resaltar ejemplos/contraejemplos en el dataset
-            self.highlight_dataset_rows(example_ids, counter_ids)
-
+            msg, df, example_ids, counter_ids = self._apply_nested_quantifiers(matrix, ids, qx, qy, order, formula_name)
         except Exception as e:
-            messagebox.showerror("Error", f"Fallo en evaluación: {e}")
+            messagebox.showerror("Error", f"Fallo en evaluación de cuantificadores: {e}")
+            return
+
+        self.populate_results(df, msg)
+        self.highlight_dataset_rows(example_ids, counter_ids)
 
     def populate_results(self, df, message):
-        # limpia
         for item in self.result_tree.get_children():
             self.result_tree.delete(item)
 
